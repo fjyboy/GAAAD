@@ -1,15 +1,103 @@
 <?php
 namespace app\index\controller;
 
-class Index
+use think\Controller;
+
+class Index extends Base
 {
     public function index()
     {
-        return '<style type="text/css">*{ padding: 0; margin: 0; } div{ padding: 4px 48px;} a{color:#2E5CD5;cursor: pointer;text-decoration: none} a:hover{text-decoration:underline; } body{ background: #fff; font-family: "Century Gothic","Microsoft yahei"; color: #333;font-size:18px;} h1{ font-size: 100px; font-weight: normal; margin-bottom: 12px; } p{ line-height: 1.6em; font-size: 42px }</style><div style="padding: 24px 48px;"> <h1>:) </h1><p> ThinkPHP V5.1<br/><span style="font-size:30px">12载初心不改（2006-2018） - 你值得信赖的PHP框架</span></p></div><script type="text/javascript" src="https://tajs.qq.com/stats?sId=64890268" charset="UTF-8"></script><script type="text/javascript" src="https://e.topthink.com/Public/static/client.js"></script><think id="eab4b9f840753f8e7"></think>';
+        $catename='';
+        $where=[];
+        if(input('?id')){
+            $where=[
+              'cate_id'=>input('id')
+            ];
+            $catename=model('Cate')->where('id',input('id'))->value('catename');
+        }
+        $articles=model('Article')->where($where)->order('create_time','desc')->paginate(5);
+
+        $viewData=[
+            'articles'=>$articles,
+            'catename'=>$catename
+        ];
+        $this->assign($viewData);
+        return view();
     }
 
-    public function hello($name = 'ThinkPHP5')
-    {
-        return 'hello,' . $name;
+
+    //注册界面
+    public function register(){
+        if(request()->isAjax()){
+            $data=[
+                'username'=>input('post.username'),
+                'password'=>input('post.password'),
+                'conpass'=>input('post.conpass'),
+                'nickname'=>input('post.nickname'),
+                'email'=>input('post.email'),
+                'verify'=>input('post.verify')
+            ];
+            $result=model('Member')->register($data);
+            if($result == 1) {
+
+                $this->success('注册成功',url('index/index/login'));
+
+            }else{
+                $this->error($result);
+            }
+        }
+        return view();
+    }
+
+    //登录校验
+    public function loginCheck(){
+        $username=input('post.username');
+        $password=input('post.password');
+
+        empty($username)&&$this->error('用户名不能为空');
+        empty($password)&&$this->error('密码不能为空');
+
+        $db = model('member');
+        $result=$db->where(array('username'=>$username))->find();
+        $result || $this->error('账号不存在');
+        $result['password'] != $password && $this->error('用户名或密码错误');
+
+
+
+        $memberInfo=[
+            'id'=>$result['id'],
+            'nickname'=>$result['nickname'],
+
+        ];
+        session('memberInfo', $memberInfo);
+
+        unset($verify);
+        $this->success('登录成功', url('index/index/index'));
+    }
+
+    public function loginout(){
+        session(null);
+        if(session('?$memberInfo.id')){
+            $this->error('退出失败');
+        }else{
+            $this->success('退出成功','index/index/login');
+        }
+    }
+
+    public function search(){
+        $where[]=['title','like','%'.input('keyword').'%'];
+        $catename=input('keyword');
+        $articles=model('Article')->where($where)->order('create_time','desc')->paginate(5);
+        $viewData=[
+            'articles'=>$articles,
+            'catename'=>$catename
+        ];
+        $this->assign($viewData);
+
+        return view('index');
+    }
+
+    public function login(){
+        return view();
     }
 }
